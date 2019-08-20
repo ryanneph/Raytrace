@@ -47,7 +47,7 @@ def locate_cuda():
 
     return cudaconfig
 
-def customize_compiler_for_nvcc(self):
+def customize_compiler_for_nvcc(self, cudaconfig):
     """inject deep into distutils to customize how the dispatch
     to gcc/nvcc works to add compat. with cuda builds.
     If you subclass UnixCCompiler, it's not trivial to get your subclass
@@ -69,7 +69,7 @@ def customize_compiler_for_nvcc(self):
     def _compile(obj, src, ext, cc_args, extra_postargs, pp_opts):
         if os.path.splitext(src)[1] == '.cu':
             # use the cuda for .cu files
-            self.set_executable('compiler_so', CUDA['nvcc'])
+            self.set_executable('compiler_so', cudaconfig['nvcc'])
             # use only a subset of the extra_postargs, which are 1-1 translated
             # from the extra_compile_args in the Extension class
             postargs = extra_postargs['nvcc']
@@ -90,6 +90,7 @@ def install_setup_requirements(reqs):
 #####################
 # CUSTOMIZE BUILDER #
 #####################
+CUDA = locate_cuda()
 def generate_custom_build_ext():
     # install build dependencies
     install_setup_requirements(['cython'])
@@ -97,7 +98,7 @@ def generate_custom_build_ext():
     # run the customize_compiler by subclassing Cython's build_ext class and adding cuda pre-compilation
     class custom_build_ext(build_ext):
         def build_extensions(self):
-            customize_compiler_for_nvcc(self.compiler)
+            customize_compiler_for_nvcc(self.compiler, CUDA)
             build_ext.build_extensions(self)
     return custom_build_ext
 
@@ -112,7 +113,6 @@ def generate_cuda_extension():
         numpy_include = numpy.get_numpy_include()
 
     # create a c++/CUDA extension module (library) to build during setup and include in package
-    CUDA = locate_cuda()
     ext = Extension(name='raytrace',
                     sources=[pjoin('src', 'raytrace.cu'), 'raytrace.pyx'],
                     library_dirs=[CUDA['lib64']],
