@@ -174,7 +174,7 @@ __global__ void cudaRayTrace(
 
 
 // C-CALLABLE ENTRY POINT
-void raytrace2d_c(
+void raytrace_c(
     float* rpl,
     float* dests,
     float3 source,

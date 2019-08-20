@@ -4,7 +4,7 @@
 #include <iostream>
 #include "vector_types.h"
 
-void raytrace2d_c(
+void raytrace_c(
     float* rpl,
     float* dests,
     float3 source,

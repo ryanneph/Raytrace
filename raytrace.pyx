@@ -18,7 +18,7 @@ cdef extern from "vector_types.h":
 
 
 cdef extern from "src/raytrace.hh":
-    cdef void raytrace2d_c(
+    cdef void raytrace_c(
         float*       rpl,
         const float* dests,
         float3       source,
@@ -32,8 +32,13 @@ cdef extern from "src/raytrace.hh":
         uint         ssfactor
     )
 
-def raytrace2d(dests, source, dens, dens_start, dens_spacing, stop_early=-1, ssfactor=3):
-    """Wrapper around raytracing C-function that handle data conversion to/from C-types"""
+def raytrace(dests, source, dens, dens_start, dens_spacing, stop_early=-1, ssfactor=3):
+    """Wrapper around raytracing C-function that handle data conversion to/from C-types
+    Args:
+        dests ([(x,y,z), ...]: list of 3d coordinates indicating ray endpoints
+        source
+    """
+
     for v in [dests, dens]:
         assert isinstance(v, np.ndarray)
     assert dests.ndim == 2
@@ -54,5 +59,5 @@ def raytrace2d(dests, source, dens, dens_start, dens_spacing, stop_early=-1, ssf
     dens_size_.x, dens_size_.y, dens_size_.z = dens.shape[::-1]
     dens_spacing_.x, dens_spacing_.y, dens_spacing_.z = dens_spacing
 
-    raytrace2d_c(&rpl_[0], &dests_[0, 0], src_, npts_, &dens_[0, 0, 0], dens_start_, dens_size_, dens_spacing_, cout, stop_early, ssfactor)
+    raytrace_c(&rpl_[0], &dests_[0, 0], src_, npts_, &dens_[0, 0, 0], dens_start_, dens_size_, dens_spacing_, cout, stop_early, ssfactor)
     return np.asarray(rpl_)
