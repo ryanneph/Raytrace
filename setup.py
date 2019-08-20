@@ -2,16 +2,7 @@ import sys, os
 from os.path import join as pjoin
 from setuptools import setup
 from distutils.extension import Extension
-try:
-    from Cython.Distutils import build_ext
-except ImportError as e:
-    print('** cython is a requirement for building this package. Please install and retry. **')
-    raise
-try:
-    import numpy
-except ImportError as e:
-    print('** numpy is a requirement for building this package. Please install and retry. **')
-    raise
+import subprocess
 
 ###########################
 # SETUP BUILD ENVIRONMENT #
@@ -92,57 +83,67 @@ def customize_compiler_for_nvcc(self):
     # inject our redefined _compile method into the class
     self._compile = _compile
 
+def install_setup_requirements(reqs):
+    # install build dependencies
+    subprocess.call(["pip", "install", *reqs])
+
 #####################
 # CUSTOMIZE BUILDER #
 #####################
-# run the customize_compiler by subclassing Cython's build_ext class and adding cuda pre-compilation
-class custom_build_ext(build_ext):
-    def build_extensions(self):
-        customize_compiler_for_nvcc(self.compiler)
-        build_ext.build_extensions(self)
+def generate_custom_build_ext():
+    # install build dependencies
+    install_setup_requirements(['cython'])
+    from Cython.Distutils import build_ext
+    # run the customize_compiler by subclassing Cython's build_ext class and adding cuda pre-compilation
+    class custom_build_ext(build_ext):
+        def build_extensions(self):
+            customize_compiler_for_nvcc(self.compiler)
+            build_ext.build_extensions(self)
+    return custom_build_ext
+
+def generate_cuda_extension():
+    # install build dependencies
+    install_setup_requirements(['numpy'])
+    # Obtain the numpy include directory. This logic works across numpy versions.
+    import numpy
+    try:
+        numpy_include = numpy.get_include()
+    except AttributeError:
+        numpy_include = numpy.get_numpy_include()
+
+    # create a c++/CUDA extension module (library) to build during setup and include in package
+    CUDA = locate_cuda()
+    ext = Extension(name='raytrace',
+                    sources=[pjoin('src', 'raytrace.cu'), 'raytrace.pyx'],
+                    library_dirs=[CUDA['lib64']],
+                    libraries=['cudart'],
+                    language='c++',
+                    runtime_library_dirs=[CUDA['lib64']],
+                    # this syntax is specific to this build system
+                    # we're only going to use certain compiler args with nvcc and not with gcc
+                    # the implementation of this trick is in customize_compiler() below
+                    extra_compile_args={'gcc': [],
+                                        'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
+                    include_dirs = [numpy_include, CUDA['include'], 'src'])
+    return ext
 
 #############
 # RUN SETUP #
 #############
-# Obtain the numpy include directory. This logic works across numpy versions.
-try:
-    numpy_include = numpy.get_include()
-except AttributeError:
-    numpy_include = numpy.get_numpy_include()
-
-# create a c++/CUDA extension module (library) to build during setup and include in package
-CUDA = locate_cuda()
-ext = Extension(name='raytrace',
-                sources=[pjoin('src', 'raytrace.cu'), 'raytrace.pyx'],
-                library_dirs=[CUDA['lib64']],
-                libraries=['cudart'],
-                language='c++',
-                runtime_library_dirs=[CUDA['lib64']],
-                # this syntax is specific to this build system
-                # we're only going to use certain compiler args with nvcc and not with gcc
-                # the implementation of this trick is in customize_compiler() below
-                extra_compile_args={'gcc': [],
-                                    'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
-                include_dirs = [numpy_include, CUDA['include'], 'src'])
-
-
 # run the customized setup
 setup(name='raytrace',
       author='Ryan Neph',
       author_email='neph320@gmail.com',
       version='1.0',
 
-      ext_modules = [ext],
-      setup_requires = [
-          'Cython',
-          'numpy',
-      ],
+      ext_modules = [generate_cuda_extension()],
       install_requires = [
           'numpy',
       ],
       # inject our custom trigger
-      cmdclass={'build_ext': custom_build_ext},
-
+      cmdclass={
+          'build_ext': generate_custom_build_ext()
+      },
       # since the package has c code, the egg cannot be zipped
       zip_safe=False
       )
