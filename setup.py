@@ -134,7 +134,7 @@ def generate_cuda_extension():
 setup(name='raytrace',
       author='Ryan Neph',
       author_email='neph320@gmail.com',
-      version='1.0',
+      version='1.1',
 
       ext_modules = [generate_cuda_extension()],
       install_requires = [

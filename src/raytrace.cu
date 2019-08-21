@@ -187,9 +187,6 @@ void raytrace_c(
     float  stop_early,
     uint   ssfactor
 ) {
-    /* // Force supersampling off */
-    /* ssfactor = 1; */
-    //
     // allocate cudaArray opaque memory
     cudaArray* d_densArr;
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();
