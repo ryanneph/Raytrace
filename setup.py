@@ -28,7 +28,7 @@ def locate_cuda():
 
     # first check if the CUDAHOME env variable is in use
     if 'CUDAHOME' in os.environ:
-        home = os.environ['CUDAHOME']
+        home = os.environ['CUDA_HOME']
         nvcc = pjoin(home, 'bin', 'nvcc')
     else:
         # otherwise, search the PATH for NVCC
@@ -113,10 +113,12 @@ def generate_cuda_extension():
         numpy_include = numpy.get_numpy_include()
 
     # create a c++/CUDA extension module (library) to build during setup and include in package
+    # find exact cuart.so to use - resolves conflict with cuda shared libs coming from other py packages
+    cudart_filename = [x for x in os.listdir(CUDA['lib64']) if x.startswith('libcudart.so.')][0]
     ext = Extension(name='raytrace',
                     sources=[pjoin('src', 'raytrace.cu'), 'raytrace.pyx'],
                     library_dirs=[CUDA['lib64']],
-                    libraries=['cudart'],
+                    libraries=[':'+cudart_filename],
                     language='c++',
                     runtime_library_dirs=[CUDA['lib64']],
                     # this syntax is specific to this build system
