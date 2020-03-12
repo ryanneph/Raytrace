@@ -76,6 +76,7 @@ def customize_compiler_for_nvcc(self, cudaconfig):
         else:
             postargs = extra_postargs['gcc']
 
+
         super(obj, src, ext, cc_args, postargs, pp_opts)
         # reset the default compiler_so, which we might have changed for cuda
         self.compiler_so = default_compiler_so
@@ -116,7 +117,7 @@ def generate_cuda_extension():
     # find exact cuart.so to use - resolves conflict with cuda shared libs coming from other py packages
     cudart_filename = [x for x in os.listdir(CUDA['lib64']) if x.startswith('libcudart.so.')][0]
     ext = Extension(name='raytrace',
-                    sources=[pjoin('src', 'raytrace.cu'), 'raytrace.pyx'],
+                    sources=['raytrace.pyx', pjoin('src', 'raytrace.cu')],
                     library_dirs=[CUDA['lib64']],
                     libraries=[':'+cudart_filename],
                     language='c++',
@@ -136,7 +137,7 @@ def generate_cuda_extension():
 setup(name='raytrace',
       author='Ryan Neph',
       author_email='neph320@gmail.com',
-      version='1.1.1',
+      version='1.2',
 
       ext_modules = [generate_cuda_extension()],
       install_requires = [
