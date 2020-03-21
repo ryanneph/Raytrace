@@ -26,6 +26,6 @@ rpl = rpl.reshape((11,11))
 
 # show raytracing output
 import matplotlib.pyplot as plt
-plt.imshow(rpl)
+plt.imshow(rpl, origin='lower')
 plt.colorbar()
 plt.show()

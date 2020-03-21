@@ -11,19 +11,19 @@ from raytrace import raytrace, beamtrace
 vol = np.load(pjoin(curdir, 'test_data', 'PTV.npy'))
 print('volume shape: ', vol.shape)
 
-sad = 3000.0
-det_size = (80,80)
+sad = 1000.0
+det_dims = (80, 80)
 det_spacing = (5.0, 5.0)
+det_pixelsize = (5.0, 5.0)
 spacing = np.array((2.5,2.5,2.5))
 isocenter = np.divide(vol.shape[::-1],2.0)*spacing
-isocenter[1] = 1000.0
 
 common_source = isocenter.copy()
 common_source[1] -= sad
-sources = np.ones((np.product(det_size), 3))*common_source
+sources = np.ones((np.product(det_dims), 3))*common_source
 xx, zz = np.meshgrid(
-    np.arange(-det_size[0]*det_spacing[0]//2, det_size[0]*det_spacing[0]//2, det_spacing[0]) + isocenter[0] + det_spacing[0]/2,
-    np.arange(-det_size[1]*det_spacing[1]//2, det_size[1]*det_spacing[1]//2, det_spacing[1]) + isocenter[2] + det_spacing[1]/2,
+    np.arange(-det_dims[0]*det_spacing[0]//2, det_dims[0]*det_spacing[0]//2, det_spacing[0]) + isocenter[0] + det_spacing[0]/2,
+    np.arange(-det_dims[1]*det_spacing[1]//2, det_dims[1]*det_spacing[1]//2, det_spacing[1]) + isocenter[2] + det_spacing[1]/2,
 )
 yy = np.ones_like(xx) * isocenter[1]
 dests = np.stack([xx, yy, zz]).reshape((3, -1)).T
@@ -38,24 +38,25 @@ raytrace_args = {
     'vol_spacing': spacing,
     'stop_early':  -1,
 }
-rpl_ray = raytrace(**raytrace_args).reshape(det_size)
+rpl_ray = raytrace(**raytrace_args).reshape(det_dims)
 
 
 # beamtrace
 beamtrace_args = {
-    'sad':         sad,
-    'det_size':    det_size,
-    'det_center':  isocenter,
-    'det_spacing': det_spacing,
-    'det_azi':     0,
-    'det_zen':     0,
-    'det_ang':     0,
-    'vol':         vol,
-    'vol_start':   (0,0,0),
-    'vol_spacing': spacing,
-    'stop_early':  -1,
+    'sad':           sad,
+    'det_dims':      det_dims,
+    'det_center':    isocenter,
+    'det_spacing':   det_spacing,
+    'det_pixelsize': det_pixelsize,
+    'det_azi':       0,
+    'det_zen':       0,
+    'det_ang':       0,
+    'vol':           vol,
+    'vol_start':     (0,0,0),
+    'vol_spacing':   spacing,
+    'stop_early':    -1,
 }
-rpl_beam =  beamtrace(**beamtrace_args).reshape(det_size)
+rpl_beam =  beamtrace(**beamtrace_args).reshape(det_dims)
 
 
 # reporting / comparison

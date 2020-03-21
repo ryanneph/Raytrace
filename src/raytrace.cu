@@ -16,7 +16,7 @@ __device__ float siddonRPL(
     float stop_early=-1.f
 ) {
   // avoid division by zero (fixes blank center pixel issue)
-  dest += 1e-9f;
+  dest += 1e-12f;
 
   // projection vector for this thread
   float3 diff = dest - source;
@@ -66,7 +66,8 @@ __device__ float siddonRPL(
     float alpha_z = a_min;
     float nextalpha;
     float alpha_mid;
-    int max_iters = 5000;
+    const int max_iters = 5000;
+    const float intersect_min = 0.001f*fmin(fmin(spacing.x, spacing.y), spacing.z);
     int iter = 0;
     while (alpha < a_max && ++iter < max_iters) {
       // find next intersection plane
@@ -91,7 +92,7 @@ __device__ float siddonRPL(
       // the total intersection length of previous voxel
       float intersection = fabsf(d12*(nextalpha-alpha)); // intersection is voxel intersection length
 
-      if (intersection>=0.001f) { // do not process unless > 0.1 mm
+      if (intersection>=intersect_min) { // do not process unless > 0.1 mm
         alpha_mid = (nextalpha + alpha)*0.5f; // midpoint between intersections
         // Remember that this function traces only a single ray.
         // rpl has been set to zero during initialisation.
@@ -150,9 +151,10 @@ __global__ void cudaRayTrace(
 __global__ void cudaBeamTrace(
         float* rpl,
         float  sad,
-        uint2  detSize,
+        uint2  detDims,
         float3 detCenter,
         float2 detSpacing,
+        float2 detPixelSize,
         float  detAzi, // gantry angle
         float  detZen, // couch angle
         float  detAng, // detAngimator angle
@@ -172,37 +174,32 @@ __global__ void cudaBeamTrace(
 
     // threads are launched for each pixel in the 2D output map
     // ray_X/ray_Z in Fluence Coord Sys (FCS) which matches RCS before rotation
-    if (ray_X >= detSize.x || ray_Z >= detSize.y) { return; }
+    if (ray_X >= detDims.x || ray_Z >= detDims.y) { return; }
 
     // shift for sub-ray [-1, 0, +1]
-    int subray_X = 0;
-    int subray_Z = 0;
-    if (subraycount > 1) {
-        subray_X = (subrayidx % 3) - 1;
-        subray_Z = (subrayidx / 3) - 1;
-    }
+    int subray_X = (subrayidx % 3) - 1;
+    int subray_Z = (subrayidx / 3) - 1;
 
-	// the end point of each ray is found from the 2D coordinates on the fluence map
+	  // the end point of each ray is found from the 2D coordinates on the fluence map
     // center coord of fluence map is detCenter
     // bixel coords defined in ray_X-ray_Z plane (FCS) then rotated with beam angles into RCS
     // dont let x/y in int2 scare you, it is really x/z
     // we directly define bixel coords in DCS to be consistent with storage of texRay
+    float2 detsize = make_float2(detDims-1)*detSpacing;
     float3 bixel_ctr_FCS = make_float3(
-            detSpacing.x*(ray_X + 0.5f*subray_X - detSize.x*0.5f + 0.5f),
+            -0.5f*detsize.x + ray_X*detSpacing.x + 0.5f*subray_X*detPixelSize.x,
             0,
-            detSpacing.y*(ray_Z + 0.5f*subray_Z - detSize.y*0.5f + 0.5f)
+            -0.5f*detsize.y + ray_Z*detSpacing.y + 0.5f*subray_Z*detPixelSize.y
             );
 
     float3 bixel_ctr = inverseRotateBeamAtOriginRHS(bixel_ctr_FCS, detAzi, detZen, detAng);
     bixel_ctr += detCenter;
-    // avoid divisions by 0
-    bixel_ctr += 1e-9f;
 
     float3 source = inverseRotateBeamAtOriginRHS(make_float3(0.f, -sad, 0.f), detAzi, detZen, detAng) + detCenter;
 
     // extend end of raytrace beyond fluence map plane
     float3 shortdiff = bixel_ctr - source;
-    float3 sink = source + 3.f*shortdiff;
+    float3 sink = source + 10.f*shortdiff;
 
 	// the vector of projection for this thread, extended completely through volume
     float3 diff = sink - source;
@@ -225,7 +222,7 @@ __global__ void cudaBeamTrace(
         }
 
         // write out the fluence map
-        rpl[ray_X + detSize.x * ray_Z] = f/9.f;
+        rpl[ray_X + detDims.x * ray_Z] = f/9.f;
     }
 }
 
@@ -319,9 +316,10 @@ void raytrace_c(
 void beamtrace_c(
   float*        rpl,
   const float   sad,
-  const uint2   detSize,
+  const uint2   detDims,
   const float3  detCenter,
   const float2  detSpacing,
+  const float2  detPixelSize,
   const float   detAzi,
   const float   detZen,
   const float   detAng,
@@ -364,7 +362,7 @@ void beamtrace_c(
 
   // projection through iso_cntr_matrix to create conformal field map from source
   float *d_rpl;
-  int nbixels = detSize.x * detSize.y;
+  int nbixels = detDims.x * detDims.y;
   checkCudaErrors( cudaMalloc( &d_rpl, nbixels*sizeof(float) ) );
   checkCudaErrors( cudaMemset( d_rpl, 0, nbixels*sizeof(float) ) );
 
@@ -372,17 +370,18 @@ void beamtrace_c(
   dim3 rayGrid;
   dim3 rayBlock = dim3{9, 8, 8};
   // create a thread for each pixel in a 2D square fluence map array
-  rayGrid.y = ceilf((float)detSize.x/rayBlock.y);
-  rayGrid.z = ceilf((float)detSize.y/rayBlock.z);
+  rayGrid.y = ceilf((float)detDims.x/rayBlock.y);
+  rayGrid.z = ceilf((float)detDims.y/rayBlock.z);
 
   // call raytracing kernel
   size_t sharedMem = rayBlock.x*rayBlock.y*rayBlock.z*sizeof(char);
   cudaBeamTrace <<< rayGrid, rayBlock, sharedMem >>>(
       d_rpl,
       sad,
-      detSize,
+      detDims,
       detCenter,
       detSpacing,
+      detPixelSize,
       detAzi,
       detZen,
       detAng,

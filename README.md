@@ -75,10 +75,11 @@ vol[5, :, 5] = 0
 vol[8, 4:, 8] = 0
 
 # define constrained "fluence plane" geometry
-sad = 10.0
+sad = 100.0
 plane_size = (11, 11)
 plane_center = (5.5, 0, 5.5)
 plane_spacing = (1,1)
+plane_pixelsize = (1, 1)
 angles = (0, 0, 0) # adjustable "beam angles"
 
 # run raytrace

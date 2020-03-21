@@ -19,9 +19,10 @@ void raytrace_c(
 void beamtrace_c(
   float*        rpl,
   const float   sad,
-  const uint2   detSize,
+  const uint2   detDims,
   const float3  detCenter,
   const float2  detSpacing,
+  const float2  detPixelSize,
   const float   detAzi,
   const float   detZen,
   const float   detAng,
