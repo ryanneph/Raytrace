@@ -48,6 +48,19 @@ cdef extern from "src/raytrace.h":
         const float   stop_early
     )
 
+cdef extern from "src/geometry.cuh":
+    cdef float3 inverseRotateBeamAtOriginRHS(
+        const float3& vec,
+        const float& theta,
+        const float& phi,
+        const float& coll
+    )
+def inverseRotateBeamAtOrigin(vec, theta, phi, coll):
+    cdef float3 vec_
+    vec_.x, vec_.y, vec_.z = vec
+    rotvec = inverseRotateBeamAtOriginRHS(vec_, theta, phi, coll)
+    return (rotvec.x, rotvec.y, rotvec.z)
+
 def raytrace(sources, dests, vol, vol_start, vol_spacing, stop_early=-1):
     """Measures the pathlength along each ray specified by (source, dest) coordinate pairs through a voxelized
     volume.

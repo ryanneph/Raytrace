@@ -116,8 +116,8 @@ def generate_cuda_extension():
     # create a c++/CUDA extension module (library) to build during setup and include in package
     # find exact cuart.so to use - resolves conflict with cuda shared libs coming from other py packages
     cudart_filename = [x for x in os.listdir(CUDA['lib64']) if x.startswith('libcudart.so.')][0]
-    ext = Extension(name='raytrace',
-                    sources=['raytrace.pyx', pjoin('src', 'raytrace.cu')],
+    ext = Extension(name='raytrace.raytrace_ext',
+                    sources=['raytrace/raytrace_ext.pyx', pjoin('raytrace', 'src', 'raytrace.cu')],
                     library_dirs=[CUDA['lib64']],
                     libraries=[':'+cudart_filename],
                     language='c++',
@@ -127,7 +127,7 @@ def generate_cuda_extension():
                     # the implementation of this trick is in customize_compiler() below
                     extra_compile_args={'gcc': [],
                                         'nvcc': ['-arch=sm_30', '--ptxas-options=-v', '-c', '--compiler-options', "'-fPIC'"]},
-                    include_dirs = [numpy_include, CUDA['include'], 'src'])
+                    include_dirs = [numpy_include, CUDA['include'], pjoin('raytrace', 'src')])
     return ext
 
 #############

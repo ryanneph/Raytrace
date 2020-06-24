@@ -36,6 +36,4 @@ CUDEV_FXN float3 rotateKernelAtOriginRHS( const float3& vec, const float& theta,
 CUDEV_FXN float3 inverseRotateKernelRHS( const float3& vec, const float3& center, const float& theta, const float& phi );
 CUDEV_FXN float3 inverseRotateKernelAtOriginRHS( const float3& vec, const float& theta, const float& phi );
 
-#include "geometry.cu"
-
 #endif // __GEOMETRY_H__

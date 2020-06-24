@@ -5,6 +5,7 @@
 #include "helper_cuda.h"
 #include "helper_math.h"
 #include "geometry.cuh"
+#include "geometry.cu"
 
 __device__ float siddonRPL(
     float3 source,
@@ -31,7 +32,7 @@ __device__ float siddonRPL(
   float a_min, a_max;
   float3 alpha_min, alpha_max;
   {
-    float3 end = start + spacing*make_float3(size);
+    float3 end = start + spacing*make_float3(size)-1.f;
 
     float3 a_first, a_last;
     a_first.x = (start.x - source.x - 0.5f*spacing.x) / diff.x;
