@@ -1,9 +1,14 @@
 import logging
 
-from .raytrace_ext import raytrace, beamtrace
+try:
+    from .raytrace_ext import raytrace, beamtrace
+except ImportError:
+    from .raytracers import raytrace, beamtrace
+
 from .raytracers import siddonraytracer, NonIntersectingRayError, spottrace
 
 def enableDebugOutput():
+    """Setup the library logger from a user application"""
     module_logger = logging.getLogger(__name__)
     module_logger.setLevel(logging.DEBUG)
     sh = logging.StreamHandler()

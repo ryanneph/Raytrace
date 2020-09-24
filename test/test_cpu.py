@@ -1,6 +1,5 @@
 import sys, os
 from os.path import join as pjoin
-#  sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.path.pardir))
 import logging
 import math
 
@@ -99,7 +98,7 @@ if __name__ == "__main__":
     #  interactive_viewer([vol, mask], titles=('vol', 'mask'))
 
     # setup module logging
-    #  raytrace.enableDebugOutput()
+    raytrace.enableDebugOutput()
 
     depths = spottrace(
         sad=100000,

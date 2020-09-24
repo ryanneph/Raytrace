@@ -202,9 +202,6 @@ __global__ void cudaBeamTrace(
     float3 shortdiff = bixel_ctr - source;
     float3 sink = source + 10.f*shortdiff;
 
-	// the vector of projection for this thread, extended completely through volume
-    float3 diff = sink - source;
-
     s_subrpl[s_index(subrayidx)] = siddonRPL(
             source,
             sink,

@@ -1,12 +1,16 @@
 import logging
 import math
 import warnings
+from collections.abc import Iterable
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
-from .raytrace_ext import inverseRotateBeamAtOrigin
+try:
+    from .raytrace_ext import inverseRotateBeamAtOrigin
+except ImportError:
+    from .geometry import inverseRotateBeamAtOriginRHS as inverseRotateBeamAtOrigin
 
 class NonIntersectingRayError(Exception):
     pass
@@ -43,7 +47,7 @@ def siddonraytracer(vols, source, target, start, spacing):
 
     # boundary plane positions (eq 3)
     first_plane = start - spacing/2 # indices are defined at voxel center
-    last_plane  = first_plane + size*spacing
+    last_plane  = first_plane + (size)*spacing
 
     # parametric boundary values (eq 4)
     with np.errstate(divide='ignore'):
@@ -193,3 +197,50 @@ def spottrace(sad, det_dims, det_center, det_spacing, det_pixelsize, det_azi, de
             assert len(ray_entries) == len(ray_exits)
             depths[rr, cc] = list(zip(ray_entries, ray_exits))
     return depths
+
+def beamtrace(sad, det_dims, det_center, det_spacing, det_pixelsize, det_azi, det_zen, det_ang, vol, vol_start, vol_spacing, stop_early=-1):
+    source = np.add(inverseRotateBeamAtOrigin((0, -sad, 0), det_azi, det_zen, det_ang), det_center)
+
+    rpl = np.zeros(det_dims[::-1])
+
+    detsize = np.multiply(np.subtract(det_dims, 1), det_spacing)
+    for bixel_idx_z in range(det_dims[1]):
+        for bixel_idx_x in range(det_dims[0]):
+            bixel_ctr_fcs = np.array((
+                -0.5*detsize[0] + bixel_idx_x*det_spacing[0],
+                0,
+                -0.5*detsize[1] + bixel_idx_z*det_spacing[1],
+            ))
+            bixel_ctr = inverseRotateBeamAtOrigin(bixel_ctr_fcs, det_azi, det_zen, det_ang)
+            bixel_ctr = np.add(bixel_ctr, det_center)
+
+            shortdiff = np.subtract(bixel_ctr, source)
+            sink = source + 10*shortdiff
+
+            try:
+                (_, ray_lengths, ray_vals, _, _) = siddonraytracer(vol, source, sink, vol_start, vol_spacing)
+                rpl[bixel_idx_z, bixel_idx_x] = np.dot(ray_lengths, ray_vals[0])
+            except NonIntersectingRayError:
+                rpl[bixel_idx_z, bixel_idx_x] = 0
+
+    return rpl
+
+def raytrace(sources, dests, vol, vol_start, vol_spacing, stop_early=None):
+    if not isinstance(sources, Iterable):
+        sources = [sources]
+    sources = np.array(sources)
+    if not isinstance(dests, Iterable):
+        dests = [dests]
+    dests = np.array(dests)
+
+    rpl = np.zeros((len(sources),))
+
+    for idx in range(len(sources)):
+        src = sources[idx]
+        dest = dests[idx]
+        try:
+            (_, ray_lengths, ray_vals, _, _) = siddonraytracer(vol, src, dest, vol_start, vol_spacing)
+            rpl[idx] = np.dot(ray_lengths, ray_vals[0])
+        except NonIntersectingRayError:
+            rpl[idx] = 0
+    return rpl

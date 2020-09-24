@@ -5,7 +5,7 @@ from os.path import join as pjoin
 curdir = os.path.dirname(os.path.abspath(__file__))
 
 import numpy as np
-from raytrace import raytrace, beamtrace
+from raytrace import raytrace, beamtrace, enableDebugOutput
 
 
 vol = np.load(pjoin(curdir, 'test_data', 'PTV.npy'))
@@ -38,6 +38,7 @@ raytrace_args = {
     'vol_spacing': spacing,
     'stop_early':  -1,
 }
+#  enableDebugOutput()
 rpl_ray = raytrace(**raytrace_args).reshape(det_dims)
 
 

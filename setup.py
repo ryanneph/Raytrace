@@ -3,6 +3,7 @@ from os.path import join as pjoin
 from setuptools import setup
 from distutils.extension import Extension
 import subprocess
+import platform
 
 ###########################
 # SETUP BUILD ENVIRONMENT #
@@ -104,6 +105,9 @@ def generate_custom_build_ext():
     return custom_build_ext
 
 def generate_cuda_extension():
+    if platform.system() == 'Windows':
+        raise Exception("Cuda Raytracing extensions on Windows are not supported. Falling back to CPU version")
+
     # install build dependencies
     install_setup_requirements(['numpy'])
     # Obtain the numpy include directory. This logic works across numpy versions.
@@ -134,13 +138,20 @@ def generate_cuda_extension():
 # RUN SETUP #
 #############
 # run the customized setup
+try:
+    extensions = [generate_cuda_extension()]
+except Exception as e:
+    print(e)
+    print('failed to build cuda extension.')
+    extensions = []
+
 setup(name='raytrace',
       author='Ryan Neph',
       author_email='neph320@gmail.com',
       version='1.4',
 
       packages=['raytrace',],
-      ext_modules = [generate_cuda_extension()],
+      ext_modules = extensions,
       install_requires = [
           'numpy',
       ],
