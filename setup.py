@@ -148,7 +148,7 @@ except Exception as e:
 setup(name='raytrace',
       author='Ryan Neph',
       author_email='neph320@gmail.com',
-      version='1.4',
+      version='1.5',
 
       packages=['raytrace',],
       ext_modules = extensions,
